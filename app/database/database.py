@@ -19,7 +19,7 @@ def create_admin(email: str, password: str) -> bool:
 
 def update_site_data(data: Dict[str, Any]):
 	update_query = { "$set": { "data": data } }
-	response = admin_collection.update_one({ "site": "thully_developer_portifolio" }, update_query)
+	response = admin_collection.update_one({ "site": "thully_developer_portfolio" }, update_query)
 
 	return response
 

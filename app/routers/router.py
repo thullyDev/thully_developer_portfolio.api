@@ -1,4 +1,4 @@
-from typing import Any, Optional, Dict
+from typing import Any, List, Optional, Dict
 from fastapi import APIRouter
 from app.handlers import response_handler as response
 from app.database import database
@@ -44,9 +44,12 @@ def create_admin(email: str, password: str, site_key: str):
 
 @router.get("/upload_project/{repo_slug}")
 def upload(email: str, repo_slug: str, images: str):
-     image_urls = upload_images(images)
+     if images == "":
+          return response.bad_request_response(message="no images")
 
-     if image_urls is False:
+     image_urls = upload_images(string_images=images)
+
+     if not image_urls:
           return response.crash_response(message="something went wrong with uploading the images")
 
      db_response = database.upload_project(repo_slug, images=image_urls)
@@ -96,3 +99,8 @@ def delete_project(email: str, repo_slug: str):
      
      return response.successful_response(data={ "session_token": session_token })
      
+
+
+
+def upload_images(string_images: str) -> Optional[List[str]]:
+     return None
