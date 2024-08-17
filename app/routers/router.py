@@ -1,6 +1,7 @@
 from typing import Any, Optional, Dict
 from fastapi import APIRouter
 from app.handlers import response_handler as response
+from app.database import database
 from app.resources.config import SITE_KEY
 from app.resources.misc import generate_unique_token
 
@@ -12,10 +13,9 @@ def login(email: str, password: str):
           return response.bad_request_response(message="password should have atleast 10 characters")
 
      admin = database.get_admin(email)
-     admin_email = admin["email"]
 
-     if email != admin_email:
-          return response.forbidden_response(message="email not registed")
+     if not admin:
+          return response.forbidden_response(message="invalid admin")
 
      admin_password = admin["password"]
 
@@ -23,10 +23,7 @@ def login(email: str, password: str):
           return response.forbidden_response(message="incorrect password")
 
      session_token = generate_unique_token()
-     db_response = database.update_admin_token(email=email, session_token=session_token)
-
-     if not db_response:
-          return response.crash_response()
+     database.update_admin_token(email=email, session_token=session_token)
 
      return response.successful_response(data={ "email": email, "session_token": session_token })
 
@@ -58,11 +55,8 @@ def upload(email: str, repo_slug: str, images: str):
           return response.crash_response(message="something went wrong with uploading the project")
      
      session_token = generate_unique_token()
-     db_response = database.update_admin_token(email=email, session_token=session_token)
-
-     if not db_response:
-          return response.crash_response(message="something with wrong with session_token")
-
+     database.update_admin_token(email=email, session_token=session_token)
+     
      return response.successful_response(data={ "session_token": session_token })
 
 @router.get("/edit_project/{repo_slug}")
@@ -81,11 +75,8 @@ def edit(email: str, repo_slug: str, images: str):
           return response.crash_response(message="something went wrong with trying to update images")
 
      session_token = generate_unique_token()
-     db_response = database.update_admin_token(email=email, session_token=session_token)
-
-     if not db_response:
-          return response.crash_response(message="something with wrong with session_token")
-
+     database.update_admin_token(email=email, session_token=session_token)
+     
      return response.successful_response(data={ "session_token": session_token })
      
 @router.get("/delete_project/{repo_slug}")
@@ -101,10 +92,7 @@ def delete_project(email: str, repo_slug: str):
           return response.crash_response(message="something went wrong with trying to delete project")
 
      session_token = generate_unique_token()
-     db_response = database.update_admin_token(email=email, session_token=session_token)
-
-     if not db_response:
-          return response.crash_response(message="something with wrong with session_token")
-
+     database.update_admin_token(email=email, session_token=session_token)
+     
      return response.successful_response(data={ "session_token": session_token })
      
