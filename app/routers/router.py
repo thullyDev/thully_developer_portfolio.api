@@ -4,6 +4,8 @@ from app.handlers import response_handler as response
 from app.database import database
 from app.resources.config import SITE_KEY
 from app.resources.misc import generate_unique_token
+from app.handlers import storage
+import datetime
 
 router: APIRouter = APIRouter(prefix="/api")
 
@@ -43,11 +45,11 @@ def create_admin(email: str, password: str, site_key: str):
      return response.successful_response()
 
 @router.get("/upload_project/{repo_slug}")
-def upload(email: str, repo_slug: str, images: str):
+def upload_project(email: str, repo_slug: str, images: str):
      if images == "":
           return response.bad_request_response(message="no images")
 
-     image_urls = upload_images(string_images=images)
+     image_urls = upload_images(string_images=images, repo_slug=repo_slug)
 
      if not image_urls:
           return response.crash_response(message="something went wrong with uploading the images")
@@ -62,8 +64,20 @@ def upload(email: str, repo_slug: str, images: str):
      
      return response.successful_response(data={ "session_token": session_token })
 
+@router.get("/get_project/{repo_slug}")
+def get_project(email: str, repo_slug: str):
+     project = database.get_project(repo_slug)
+
+     if not project:
+          return response.not_found_response(message="project not found") 
+
+     del project["_id"]
+
+     return response.successful_response(message="found", data=project)
+
+
 @router.get("/edit_project/{repo_slug}")
-def edit(email: str, repo_slug: str, images: str):
+def edit_project(email: str, repo_slug: str, images: str):
      project = database.get_project(repo_slug)
 
      if not project:
@@ -102,5 +116,21 @@ def delete_project(email: str, repo_slug: str):
 
 
 
-def upload_images(string_images: str) -> Optional[List[str]]:
-     return None
+def upload_images(string_images: str, repo_slug: str) -> Optional[List[str]]:
+     spliter = "---***---" # never change this, it will conflict with the frontend
+     base64images = string_images.split(spliter) 
+     image_urls = []
+
+     for index, value in enumerate(base64images):
+          name, base64image = process_image(image=value, name=f"{repo_slug}-image-{index}") 
+          image_url = storage.upload_base64_image(name=name, base64Str=base64image)
+
+          image_urls.append(image_url)
+
+     return image_urls
+
+def process_image(image: str, name: str):
+     current_time = datetime.datetime.now().strftime("%d-%m-%Y-%w-%d-%H-%M-%S-%f")
+     name = f"{name}-{current_time}"
+
+     return name, image.replace("data:image/jpeg;base64,", "").replace("data:image/png;base64,", "")
