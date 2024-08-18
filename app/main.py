@@ -14,19 +14,19 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=False,
     allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "session_token"],
 )
 
-# def middleware(request: Request, callnext):
-#     url_path = request.url.path
-#     temp = url_path.split("/")
+def middleware(request: Request, callnext):
+    url_path = request.url.path
+    temp = url_path.split("/")
 
-#     if "auth" in temp:
-#         return router.validator(request=request, callnext=callnext) 
+    if "api" in temp:
+        return router.validator(request=request, callnext=callnext) 
 
-#     return callnext(request)
+    return callnext(request)
 
-# app.middleware("http")(middleware)
+app.middleware("http")(middleware)
 
 @app.exception_handler(Exception)
 def unexpected_error_handler() -> JSONResponse:

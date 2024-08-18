@@ -1,18 +1,52 @@
 from typing import Any, List, Optional, Dict
 from typing_extensions import Tuple
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from app.handlers import response_handler as response
 from app.database import database
 from app.resources.config import SITE_KEY
 from app.resources.misc import generate_unique_token
 from app.handlers import storage
+from urllib.parse import parse_qs, unquote, urlparse
 import datetime
 import json
 
 router: APIRouter = APIRouter(prefix="/api")
 
+def validator(*, request: Request, callnext):
+     url = request.url._url
+     url_chunks = url.split("/")
+
+     if "login" in url_chunks or "create_admin" in url_chunks: 
+          return callnext(request)
+
+     headers = request.headers
+     session_token = headers.get("session_token")
+
+     if not session_token:
+          return response.forbidden_response(data={ "message": "bad session_token" })
+
+     email = get_email_from_url_req(url)
+
+     if not email:
+          return response.bad_request_response()
+
+     admin = database.get_admin(email)
+     
+     if not admin:
+          return response.forbidden_response(data={ "message": "invalid admin"})
+     
+     if admin["session_token"] != session_token:
+          return response.forbidden_response(data={ "message": "admin not up to date with the session_token, so they should authenticate first"})
+     
+     session_token = generate_unique_token()
+     database.update_admin_token(email=email, session_token=session_token)
+
+     request.state.session_token = session_token
+
+     return callnext(request)
+
 @router.get("/update_site_data/")
-def update_site_data(email: str, dataStr: str):
+def update_site_data(request: Request, email: str, dataStr: str):
      data = json.loads(dataStr)
      images: List[str] = process_upload_profile_images(data["images"])
      data["images"] = images
@@ -21,10 +55,16 @@ def update_site_data(email: str, dataStr: str):
      if not db_response:
           return response.crash_response(message="something went with updating the site data")
 
-     session_token = generate_unique_token()
-     database.update_admin_token(email=email, session_token=session_token)
-     
-     return response.successful_response(data={ "session_token": session_token })
+     return response.successful_response(data={ "session_token": request.state.session_token  })
+
+@router.get("/get_site_data/")
+def get_site_data(request: Request):
+     data = database.get_site_data()
+
+     if data:
+          del data["_id"]
+
+     return response.successful_response(data={ "site_data": data, "session_token": request.state.session_token  })
 
 
 @router.get("/login/")
@@ -63,7 +103,7 @@ def create_admin(email: str, password: str, site_key: str):
      return response.successful_response()
 
 @router.get("/upload_project/{repo_slug}")
-def upload_project(email: str, repo_slug: str, images: str):
+def upload_project(request: Request, email: str, repo_slug: str, images: str):
      if images == "":
           return response.bad_request_response(message="no images")
 
@@ -74,27 +114,21 @@ def upload_project(email: str, repo_slug: str, images: str):
      if not db_response:
           return response.crash_response(message="something went wrong with uploading the project")
      
-     session_token = generate_unique_token()
-     database.update_admin_token(email=email, session_token=session_token)
-     
-     return response.successful_response(data={ "session_token": session_token })
+     return response.successful_response(data={ "session_token": request.state.session_token })
 
 @router.get("/get_project/{repo_slug}")
-def get_project(email: str, repo_slug: str):
+def get_project(request: Request, email: str, repo_slug: str):
      project = database.get_project(repo_slug)
 
      if not project:
           return response.not_found_response(message="project not found") 
 
      del project["_id"]
-
-     session_token = generate_unique_token()
-     database.update_admin_token(email=email, session_token=session_token)
      
-     return response.successful_response(data={ "project": project, "session_token": session_token })
+     return response.successful_response(data={ "session_token": request.state.session_token })
 
 @router.get("/edit_project/{repo_slug}")
-def edit_project(email: str, repo_slug: str, images: str):
+def edit_project(request: Request, email: str, repo_slug: str, images: str):
      project = database.get_project(repo_slug)
 
      if not project:
@@ -105,14 +139,11 @@ def edit_project(email: str, repo_slug: str, images: str):
 
      if not db_response:
           return response.crash_response(message="something went wrong with trying to update images")
-
-     session_token = generate_unique_token()
-     database.update_admin_token(email=email, session_token=session_token)
      
-     return response.successful_response(data={ "session_token": session_token })
+     return response.successful_response(data={ "session_token": request.state.session_token })
      
 @router.get("/delete_project/{repo_slug}")
-def delete_project(email: str, repo_slug: str):
+def delete_project(request: Request, email: str, repo_slug: str):
      project = database.get_project(repo_slug)
 
      if not project:
@@ -122,11 +153,8 @@ def delete_project(email: str, repo_slug: str):
 
      if not db_response:
           return response.crash_response(message="something went wrong with trying to delete project")
-
-     session_token = generate_unique_token()
-     database.update_admin_token(email=email, session_token=session_token)
      
-     return response.successful_response(data={ "session_token": session_token })
+     return response.successful_response(data={ "session_token": request.state.session_token })
      
 def process_upload_profile_images(profile_images: Dict[str, str]) -> List[str]:
      image_urls = []
@@ -171,3 +199,10 @@ def process_image(image: str, name: str) -> Tuple[str, str]:
 
      return name, image.replace("data:image/jpeg;base64,", "").replace("data:image/png;base64,", "")
 
+
+def get_email_from_url_req(url) -> Optional[str]:
+     parsed_url = urlparse(url)
+     query_params = parse_qs(parsed_url.query)
+     email = query_params.get('email', [None])[0]
+
+     return email

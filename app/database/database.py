@@ -1,4 +1,6 @@
 from typing import Any, Dict, Optional, List
+
+from fastapi import responses
 from app.resources.config import DB_URL
 from pymongo import MongoClient
 
@@ -17,18 +19,17 @@ def update_site_data(data: Dict[str, Any]) -> bool:
 
 	return response.acknowledged
 
+def get_site_data() -> Optional[Dict[str, Any]]:
+	return projects_collection.find_one({ "site": "thully_developer_portfolio" })
+
+
 def create_admin(email: str, password: str) -> bool:
 	response = admin_collection.insert_one({ "email": email, "password": password, "session_token": "", "created_at": datenow() })
 	
 	return response.acknowledged
 
 def get_admin(email: str) -> Optional[Dict[str, Any]]:
-	admin = admin_collection.find_one({ "email": email })
-
-	if not admin:
-		return 
-
-	return admin
+	return admin_collection.find_one({ "email": email })
 
 def get_project(repo_slug: str) -> Optional[Dict[str, Any]]:
 	project = projects_collection.find_one({ "repo_slug": repo_slug })
