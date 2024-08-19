@@ -6,18 +6,21 @@ from app.database import database
 from app.resources.config import SITE_KEY
 from app.resources.misc import generate_unique_token
 from app.handlers import storage
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, urlparse
 import datetime
 import json
 
 router: APIRouter = APIRouter(prefix="/api")
 
-def validator(*, request: Request, callnext):
+async def validator(*, request: Request, callnext):
      url = request.url._url
      url_chunks = url.split("/")
 
-     if "login" in url_chunks or "create_admin" in url_chunks: 
-          return callnext(request)
+     if("login" in url_chunks \
+        or "create_admin" in url_chunks \
+        or "get_site_data" in url_chunks \
+        or "get_project" in url_chunks): 
+          return await callnext(request)
 
      headers = request.headers
      session_token = headers.get("session_token")
@@ -43,10 +46,11 @@ def validator(*, request: Request, callnext):
 
      request.state.session_token = session_token
 
-     return callnext(request)
+     return await callnext(request)
 
-@router.get("/update_site_data/")
-def update_site_data(request: Request, email: str, dataStr: str):
+
+@router.post("/update_site_data/")
+def update_site_data(request: Request, dataStr: str):
      data = json.loads(dataStr)
      images: List[str] = process_upload_profile_images(data["images"])
      data["images"] = images
@@ -58,16 +62,16 @@ def update_site_data(request: Request, email: str, dataStr: str):
      return response.successful_response(data={ "session_token": request.state.session_token  })
 
 @router.get("/get_site_data/")
-def get_site_data(request: Request):
+def get_site_data():
      data = database.get_site_data()
 
      if data:
           del data["_id"]
 
-     return response.successful_response(data={ "site_data": data, "session_token": request.state.session_token  })
+     return response.successful_response(data={ "site_data": data })
 
 
-@router.get("/login/")
+@router.post("/login/")
 def login(email: str, password: str):
      if len(password) < 10:
           return response.bad_request_response(message="password should have atleast 10 characters")
@@ -102,8 +106,8 @@ def create_admin(email: str, password: str, site_key: str):
 
      return response.successful_response()
 
-@router.get("/upload_project/{repo_slug}")
-def upload_project(request: Request, email: str, repo_slug: str, images: str):
+@router.post("/upload_project/{repo_slug}")
+def upload_project(request: Request, repo_slug: str, images: str):
      if images == "":
           return response.bad_request_response(message="no images")
 
@@ -117,7 +121,7 @@ def upload_project(request: Request, email: str, repo_slug: str, images: str):
      return response.successful_response(data={ "session_token": request.state.session_token })
 
 @router.get("/get_project/{repo_slug}")
-def get_project(request: Request, email: str, repo_slug: str):
+def get_project(repo_slug: str):
      project = database.get_project(repo_slug)
 
      if not project:
@@ -125,10 +129,10 @@ def get_project(request: Request, email: str, repo_slug: str):
 
      del project["_id"]
      
-     return response.successful_response(data={ "session_token": request.state.session_token })
+     return response.successful_response(data={ "project": project })
 
-@router.get("/edit_project/{repo_slug}")
-def edit_project(request: Request, email: str, repo_slug: str, images: str):
+@router.post("/edit_project/{repo_slug}")
+def edit_project(request: Request, repo_slug: str, images: str):
      project = database.get_project(repo_slug)
 
      if not project:
@@ -142,8 +146,8 @@ def edit_project(request: Request, email: str, repo_slug: str, images: str):
      
      return response.successful_response(data={ "session_token": request.state.session_token })
      
-@router.get("/delete_project/{repo_slug}")
-def delete_project(request: Request, email: str, repo_slug: str):
+@router.post("/delete_project/{repo_slug}")
+def delete_project(request: Request, repo_slug: str):
      project = database.get_project(repo_slug)
 
      if not project:

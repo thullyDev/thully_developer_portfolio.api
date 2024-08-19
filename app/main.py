@@ -17,14 +17,14 @@ app.add_middleware(
     allow_headers=["Content-Type", "session_token"],
 )
 
-def middleware(request: Request, callnext):
+async def middleware(request: Request, callnext):
     url_path = request.url.path
     temp = url_path.split("/")
 
     if "api" in temp:
-        return router.validator(request=request, callnext=callnext) 
+        return await router.validator(request=request, callnext=callnext) 
 
-    return callnext(request)
+    return await callnext(request)
 
 app.middleware("http")(middleware)
 
