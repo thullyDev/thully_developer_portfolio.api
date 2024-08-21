@@ -16,8 +16,18 @@ projects_collection = db.projects
 def update_site_data(data: Dict[str, Any]) -> bool:
 	update_query = { "$set": { "data": data } }
 	response = projects_collection.update_one({ "site": "thully_developer_portfolio" }, update_query)
+	result = response.raw_result
+	
+	if result:
+		return result["updatedExisting"] 
 
 	return response.acknowledged
+
+def set_site_data(data: Dict[str, Any]) -> bool:
+	response = projects_collection.insert_one({ "site": "thully_developer_portfolio", "data": data })
+
+	return response.acknowledged
+
 
 def get_site_data() -> Optional[Dict[str, Any]]:
 	return projects_collection.find_one({ "site": "thully_developer_portfolio" })

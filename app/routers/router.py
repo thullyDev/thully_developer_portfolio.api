@@ -23,15 +23,23 @@ async def validator(*, request: Request, callnext):
         or "get_project" in url_chunks): 
           return await callnext(request)
 
+
      headers = request.headers
      session_token = headers.get("session_token")
-
-     print(session_token)
 
      if not session_token:
           return response.forbidden_response(data={ "message": "bad session_token" })
 
-     email = get_email_from_url_req(url)
+
+     email = None
+     method = request.method
+
+     if "POST" == method:
+          email = headers.get("email") 
+
+     if "GET" == method:
+          email = get_email_from_url_req(url)
+
 
      if not email:
           return response.bad_request_response()
@@ -40,7 +48,8 @@ async def validator(*, request: Request, callnext):
      
      if not admin:
           return response.forbidden_response(data={ "message": "invalid admin"})
-     
+
+
      if admin["session_token"] != session_token:
           return response.forbidden_response(data={ "message": "admin not up to date with the session_token, so they should authenticate first"})
      
@@ -52,12 +61,19 @@ async def validator(*, request: Request, callnext):
      return await callnext(request)
 
 
+
+from pprint import pprint
+
 @router.post("/update_site_data/")
 def update_site_data(request: Request, dataStr: str):
      data = json.loads(dataStr)
      images: Dict[str, str] = process_upload_profile_images(data["images"])
      data["images"] = images
+
      db_response = database.update_site_data(data)
+
+     if db_response == False:
+          db_response = database.set_site_data(data)
 
      if not db_response:
           return response.crash_response(message="something went with updating the site data")
@@ -71,7 +87,7 @@ def get_site_data():
      if data:
           del data["_id"]
 
-     return response.successful_response(data={ "site_data": data })
+     return response.successful_response(data={ "site_data": data.get("data") })
 
 
 @router.post("/login/")
@@ -163,7 +179,7 @@ def delete_project(request: Request, repo_slug: str):
      
      return response.successful_response(data={ "session_token": request.state.session_token })
      
-def process_upload_profile_images(profile_images: Dict[str, str]) -> List[str]:
+def process_upload_profile_images(profile_images: Dict[str, str]) -> Dict[str, str]:
      images: Any = {}
 
      for key, image in profile_images.items():
