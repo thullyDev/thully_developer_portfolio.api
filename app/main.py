@@ -11,11 +11,12 @@ origins = ORIGINS.split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=False,
-    allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type", "session_token"],
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 
 async def middleware(request: Request, callnext):
     url_path = request.url.path

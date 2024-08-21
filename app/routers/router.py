@@ -1,4 +1,5 @@
 from typing import Any, List, Optional, Dict
+from requests import session
 from typing_extensions import Tuple
 from fastapi import APIRouter, Request
 from app.handlers import response_handler as response
@@ -24,6 +25,8 @@ async def validator(*, request: Request, callnext):
 
      headers = request.headers
      session_token = headers.get("session_token")
+
+     print(session_token)
 
      if not session_token:
           return response.forbidden_response(data={ "message": "bad session_token" })
@@ -52,7 +55,7 @@ async def validator(*, request: Request, callnext):
 @router.post("/update_site_data/")
 def update_site_data(request: Request, dataStr: str):
      data = json.loads(dataStr)
-     images: List[str] = process_upload_profile_images(data["images"])
+     images: Dict[str, str] = process_upload_profile_images(data["images"])
      data["images"] = images
      db_response = database.update_site_data(data)
 
@@ -161,21 +164,21 @@ def delete_project(request: Request, repo_slug: str):
      return response.successful_response(data={ "session_token": request.state.session_token })
      
 def process_upload_profile_images(profile_images: Dict[str, str]) -> List[str]:
-     image_urls = []
+     images: Any = {}
 
      for key, image in profile_images.items():
           if "https://" in image: 
                # this condition is here for when its used in the edit, 
                # it checks if the image from the image storage, 
                # if so then it then it just appends it and moves on
-               image_urls.append(image)
+               images[key] = image
                continue
 
           name, base64image = process_image(image=image, name=f"profile-image-{key}") 
           image_url = storage.upload_base64_image(name=name, base64Str=base64image)
-          image_urls.append(image_url)
+          images[key] = image_url
 
-     return image_urls
+     return images
 
 def upload_images(string_images: str, repo_slug: str) -> List[str]:
      spliter = "---***---" # never change this, it will conflict with the frontend
