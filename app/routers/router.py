@@ -10,6 +10,7 @@ from app.handlers import storage
 from urllib.parse import parse_qs, urlparse
 import datetime
 import json
+import ast
 
 router: APIRouter = APIRouter(prefix="/api")
 
@@ -130,7 +131,7 @@ def upload_project(request: Request, repo_slug: str, images: str):
      if images == "":
           return response.bad_request_response(message="no images")
 
-     image_urls = upload_images(string_images=images, repo_slug=repo_slug)
+     image_urls = ast.literal_eval(images)
 
      db_response = database.upload_project(repo_slug, images=image_urls)
 
@@ -157,8 +158,8 @@ def edit_project(request: Request, repo_slug: str, images: str):
      if not project:
           return response.not_found_response(message="project not found") 
 
-     new_project_images = upload_images(string_images=images, repo_slug=repo_slug)
-     db_response = database.update_project_images(images=new_project_images, repo_slug=repo_slug)
+     image_urls = ast.literal_eval(images)
+     db_response = database.update_project_images(images=image_urls, repo_slug=repo_slug)
 
      if not db_response:
           return response.crash_response(message="something went wrong with trying to update images")
