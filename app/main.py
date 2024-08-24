@@ -22,7 +22,7 @@ async def middleware(request: Request, callnext):
     url_path = request.url.path
     temp = url_path.split("/")
 
-    if "api" in temp:
+    if "api" in temp: 
         return await router.validator(request=request, callnext=callnext) 
 
     return await callnext(request)

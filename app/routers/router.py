@@ -17,6 +17,11 @@ router: APIRouter = APIRouter(prefix="/api")
 async def validator(*, request: Request, callnext):
      url = request.url._url
      url_chunks = url.split("/")
+     headers = request.headers
+
+     if "login" in url_chunks:
+          request.state.email = headers.get("email")
+          request.state.password = headers.get("password")
 
      if("login" in url_chunks \
         or "create_admin" in url_chunks \
@@ -24,7 +29,6 @@ async def validator(*, request: Request, callnext):
         or "get_project" in url_chunks): 
           return await callnext(request)
 
-     headers = request.headers
      session_token = headers.get("session_token")
 
 
@@ -87,10 +91,9 @@ def get_site_data():
 
 
 @router.post("/login/")
-def login(email: str, password: str):
-     if len(password) < 10:
-          return response.bad_request_response(message="password should have atleast 10 characters")
-
+def login(request: Request):
+     email = request.state.email
+     password = request.state.password
      admin = database.get_admin(email)
 
      if not admin:
