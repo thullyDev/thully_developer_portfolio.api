@@ -24,7 +24,6 @@ async def validator(*, request: Request, callnext):
         or "get_project" in url_chunks): 
           return await callnext(request)
 
-
      headers = request.headers
      session_token = headers.get("session_token")
 
@@ -61,10 +60,6 @@ async def validator(*, request: Request, callnext):
 
      return await callnext(request)
 
-
-
-from pprint import pprint
-
 @router.post("/update_site_data/")
 def update_site_data(request: Request, dataStr: str):
      data = json.loads(dataStr)
@@ -85,10 +80,10 @@ def update_site_data(request: Request, dataStr: str):
 def get_site_data():
      data = database.get_site_data()
 
-     if data:
-          del data["_id"]
-
-     return response.successful_response(data={ "site_data": data.get("data") })
+     if not data:
+          return response.successful_response(data={ "site_data": None })
+     
+     return response.successful_response(data={ "site_data": data["data"] })
 
 
 @router.post("/login/")
@@ -130,9 +125,8 @@ def create_admin(email: str, password: str, site_key: str):
 def upload_project(request: Request, repo_slug: str, images: str):
      if images == "":
           return response.bad_request_response(message="no images")
-
+          
      image_urls = ast.literal_eval(images)
-
      db_response = database.upload_project(repo_slug, images=image_urls)
 
      if not db_response:

@@ -55,6 +55,8 @@ def update_admin_token(email: str, session_token: str) -> bool:
 	
 	return response.acknowledged
 
+from pprint import pprint
+
 def upload_project(repo_slug: str, images: List[str]):
 	response = projects_collection.insert_one({ "images": images, "repo_slug": repo_slug,  "created_at": datenow() })
 
