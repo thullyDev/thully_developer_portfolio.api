@@ -27,6 +27,7 @@ async def validator(*, request: Request, callnext):
      headers = request.headers
      session_token = headers.get("session_token")
 
+
      if not session_token:
           return response.forbidden_response(data={ "message": "bad session_token" })
 
@@ -49,10 +50,9 @@ async def validator(*, request: Request, callnext):
      if not admin:
           return response.forbidden_response(data={ "message": "invalid admin"})
 
-
      if admin["session_token"] != session_token:
           return response.forbidden_response(data={ "message": "admin not up to date with the session_token, so they should authenticate first"})
-     
+
      session_token = generate_unique_token()
      database.update_admin_token(email=email, session_token=session_token)
 
@@ -165,7 +165,7 @@ def delete_project(request: Request, repo_slug: str):
      project = database.get_project(repo_slug)
 
      if not project:
-          return response.not_found_response(message="project not found") 
+          return response.successful_response(message="project not found", data={ "session_token": request.state.session_token }) 
 
      db_response = database.delete_project(repo_slug)
 
